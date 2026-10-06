@@ -6,8 +6,17 @@ hidden by default, and overdue rows don't show a date. Click a row to open it.
 
 ## Install
 
+The folder Cinnamon loads from must be named `monday-mywork@mitch` (the
+desklet's uuid) — if it's named anything else the desklet still loads but
+the Configure entry disappears from the right-click menu. Easiest is to
+symlink the clone:
+
+    git clone https://github.com/mitchsowa/monday-mywork-desklet
     mkdir -p ~/.local/share/cinnamon/desklets
-    cp -r monday-mywork@mitch ~/.local/share/cinnamon/desklets/
+    ln -s "$PWD/monday-mywork-desklet" ~/.local/share/cinnamon/desklets/monday-mywork@mitch
+
+A `git pull` in the clone then updates the desklet in place (restart Cinnamon
+with `Alt+F2` → `r` to reload it).
 
 Then right-click the desktop → Add Desklets → "monday.com My Work" → Add.
 Right-click the desklet → Configure → paste your API token
