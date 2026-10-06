@@ -1,0 +1,146 @@
+{
+  "layout": {
+    "type": "layout",
+    "pages": [
+      "page-api",
+      "page-display",
+      "page-refresh"
+    ],
+    "page-api": {
+      "type": "page",
+      "title": "API",
+      "sections": [
+        "sec-api"
+      ]
+    },
+    "page-display": {
+      "type": "page",
+      "title": "Display",
+      "sections": [
+        "sec-filter",
+        "sec-look"
+      ]
+    },
+    "page-refresh": {
+      "type": "page",
+      "title": "Refresh",
+      "sections": [
+        "sec-refresh"
+      ]
+    },
+    "sec-api": {
+      "type": "section",
+      "title": "monday.com",
+      "keys": [
+        "api_token",
+        "boards",
+        "boards_help"
+      ]
+    },
+    "sec-filter": {
+      "type": "section",
+      "title": "Filters",
+      "keys": [
+        "show_done",
+        "hide_undated",
+        "hide_date_overdue",
+        "max_items"
+      ]
+    },
+    "sec-look": {
+      "type": "section",
+      "title": "Appearance",
+      "keys": [
+        "width",
+        "font_size",
+        "title"
+      ]
+    },
+    "sec-refresh": {
+      "type": "section",
+      "title": "Auto refresh",
+      "keys": [
+        "auto_refresh",
+        "refresh_interval"
+      ]
+    }
+  },
+  "api_token": {
+    "type": "entry",
+    "default": "",
+    "description": "API token",
+    "tooltip": "monday.com \u2192 avatar \u2192 Developers \u2192 My access tokens"
+  },
+  "boards": {
+    "type": "textview",
+    "default": "# one per line: boardId:peopleColumnId\n# e.g. 1234567890:person\n",
+    "description": "Boards to scan (one per line, boardId:peopleColumnId)",
+    "height": 160
+  },
+  "boards_help": {
+    "type": "label",
+    "description": "Board id is the number in the board URL (\u2026/boards/1234567890). Subitem boards are separate boards on monday \u2014 open a subitem and use the id from its URL. The people column id is usually 'person'."
+  },
+  "show_done": {
+    "type": "checkbox",
+    "default": false,
+    "description": "Show done items"
+  },
+  "hide_undated": {
+    "type": "checkbox",
+    "default": true,
+    "description": "Hide items with no date"
+  },
+  "hide_date_overdue": {
+    "type": "checkbox",
+    "default": true,
+    "description": "Hide the date on overdue items"
+  },
+  "max_items": {
+    "type": "spinbutton",
+    "default": 30,
+    "min": 5,
+    "max": 200,
+    "step": 5,
+    "units": "items",
+    "description": "Maximum rows shown"
+  },
+  "width": {
+    "type": "spinbutton",
+    "default": 620,
+    "min": 380,
+    "max": 1400,
+    "step": 20,
+    "units": "px",
+    "description": "Desklet width"
+  },
+  "font_size": {
+    "type": "spinbutton",
+    "default": 10,
+    "min": 7,
+    "max": 16,
+    "step": 1,
+    "units": "pt",
+    "description": "Font size"
+  },
+  "title": {
+    "type": "entry",
+    "default": "My work",
+    "description": "Title"
+  },
+  "auto_refresh": {
+    "type": "checkbox",
+    "default": true,
+    "description": "Refresh automatically"
+  },
+  "refresh_interval": {
+    "type": "spinbutton",
+    "default": 300,
+    "min": 30,
+    "max": 3600,
+    "step": 30,
+    "units": "seconds",
+    "description": "Refresh interval",
+    "dependency": "auto_refresh"
+  }
+}

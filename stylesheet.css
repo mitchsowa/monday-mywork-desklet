@@ -1,0 +1,15 @@
+.mw-root { background-color: rgba(24, 27, 52, 0.94); border-radius: 12px; padding: 10px 12px; color: #d5d8df; }
+.mw-title { color: #ffffff; font-weight: bold; }
+.mw-meta { color: #c3c6d4; font-size: 0.85em; }
+.mw-section { color: #a25ddc; font-weight: bold; font-size: 1.15em; padding-top: 8px; }
+.mw-count { color: #c3c6d4; font-size: 0.85em; }
+.mw-header { color: #c3c6d4; font-size: 0.85em; padding-bottom: 2px; }
+.mw-row { border-top: 1px solid #323338; padding: 3px 0; }
+.mw-row:hover { background-color: rgba(255, 255, 255, 0.06); }
+.mw-name { color: #d5d8df; padding-left: 6px; border-left: 3px solid #a25ddc; }
+.mw-pill { color: #ffffff; border-radius: 4px; padding: 3px 6px; text-align: center; font-size: 0.9em; }
+.mw-pill-date { border-radius: 12px; }
+.mw-pill-empty { background-color: #4b4e69; }
+.mw-error { color: #f5a8a8; }
+.mw-btn { color: #c3c6d4; padding: 2px 6px; border-radius: 4px; }
+.mw-btn:hover { background-color: rgba(255, 255, 255, 0.1); color: #ffffff; }

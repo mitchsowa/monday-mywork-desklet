@@ -1,0 +1,8 @@
+{
+  "uuid": "monday-mywork@mitch",
+  "name": "monday.com My Work",
+  "description": "Your assigned monday.com items grouped by overdue / today / upcoming, with auto-refresh.",
+  "version": "1.0",
+  "max-instances": 3,
+  "prevent-decorations": false
+}
