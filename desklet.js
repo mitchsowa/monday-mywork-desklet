@@ -10,6 +10,7 @@ const Pango = imports.gi.Pango;
 
 const API_URL = "https://api.monday.com/v2";
 const API_VERSION = "2025-01";
+const BOARDS_PER_REQUEST = 50;
 
 const PRIORITY_RANK = { "Critical": 0, "High": 1, "Medium": 2, "Low": 3 };
 const DATE_UPCOMING = "#0073ea";
@@ -38,13 +39,18 @@ MondayDesklet.prototype = {
         this._items = [];
         this._lastError = null;
         this._lastUpdated = null;
+        this._boards = null;
+        this._boardsFetchedAt = 0;
 
         this.settings = new Settings.DeskletSettings(this, metadata.uuid, deskletId);
         let rerender = () => this._render();
         let refetch = () => this._fetch();
         let retimer = () => this._scheduleRefresh();
         this.settings.bind("api_token", "apiToken", refetch);
-        this.settings.bind("boards", "boards", refetch);
+        let rediscover = () => { this._boards = null; this._fetch(); };
+        this.settings.bind("exclude_boards", "excludeBoards", refetch);
+        this.settings.bind("workspaces", "workspaces", refetch);
+        this.settings.bind("board_refresh_interval", "boardRefreshInterval", rediscover);
         this.settings.bind("show_done", "showDone", rerender);
         this.settings.bind("hide_undated", "hideUndated", rerender);
         this.settings.bind("hide_date_overdue", "hideDateOverdue", rerender);
@@ -88,26 +94,63 @@ MondayDesklet.prototype = {
         });
     },
 
-    _parseBoards: function() {
-        let out = [];
-        (this.boards || "").split(/\r?\n/).forEach(line => {
-            line = line.trim();
-            if (!line || line[0] === "#") return;
-            let parts = line.split(":");
-            let id = parseInt(parts[0].trim());
-            if (!id) return;
-            let col = (parts[1] || "person").trim().replace(/[^A-Za-z0-9_]/g, "");
-            out.push({ id: id, col: col });
+    // ---- board discovery -------------------------------------------------
+
+    _parseIdList: function(text) {
+        let out = {};
+        (text || "").split(/[\s,]+/).forEach(t => {
+            let n = parseInt(t);
+            if (n) out[n] = true;
         });
         return out;
     },
 
+    _boardsStale: function() {
+        if (!this._boards) return true;
+        let mins = Math.max(1, parseInt(this.boardRefreshInterval) || 15);
+        return (Date.now() - this._boardsFetchedAt) > mins * 60 * 1000;
+    },
+
+    // Page through every active board the token can see and keep the ones
+    // that have a people column. Subitem boards are ordinary boards here.
+    _discoverBoards: function(page, acc, cb) {
+        let q = "query { boards(limit: 100, page: " + page + ", state: active) {" +
+                " id name type workspace_id columns(types: [people]) { id } } }";
+        this._request(q, (err, data) => {
+            if (err) { cb(err); return; }
+            let list = (data && data.boards) || [];
+            list.forEach(b => {
+                let isBoard = (b.type === "board" || b.type === "sub_items_board");
+                if (isBoard && b.columns && b.columns.length) {
+                    acc.push({ id: parseInt(b.id), name: b.name, type: b.type,
+                               workspace: parseInt(b.workspace_id) || 0,
+                               cols: b.columns.map(c => c.id) });
+                }
+            });
+            if (list.length === 100 && page < 50) this._discoverBoards(page + 1, acc, cb);
+            else cb(null, acc);
+        });
+    },
+
+    _filteredBoards: function() {
+        let excl = this._parseIdList(this.excludeBoards);
+        let ws = this._parseIdList(this.workspaces);
+        let anyWs = Object.keys(ws).length > 0;
+        return (this._boards || []).filter(b => !excl[b.id] && (!anyWs || ws[b.workspace]));
+    },
+
+    // ---- item query ------------------------------------------------------
+
     _buildQuery: function(boards) {
-        let parts = boards.map((b, i) =>
-            "b" + i + ": boards(ids: [" + b.id + "]) { id name items_page(limit: 200, query_params: {" +
-            "rules: [{column_id: \"" + b.col + "\", compare_value: [\"assigned_to_me\"], operator: any_of}]}) {" +
-            " items { id name url column_values(types: [status, date, timeline]) { id type text column { title }" +
-            " ... on StatusValue { is_done label_style { color } } } } } }");
+        let parts = [];
+        boards.forEach((b, i) => {
+            b.cols.forEach((col, j) => {
+                parts.push("b" + i + "_" + j + ": boards(ids: [" + b.id + "]) { id name items_page(limit: 100, query_params: {" +
+                    "rules: [{column_id: \"" + col + "\", compare_value: [\"assigned_to_me\"], operator: any_of}]}) {" +
+                    " items { id name url column_values(types: [status, date, timeline]) { id type text column { title }" +
+                    " ... on StatusValue { is_done label_style { color } } } } } }");
+            });
+        });
         return "query { " + parts.join(" ") + " }";
     },
 
@@ -119,32 +162,68 @@ MondayDesklet.prototype = {
             this._render();
             return;
         }
-        let boards = this._parseBoards();
-        if (!boards.length) {
-            this._lastError = "No boards configured.";
-            this._render();
-            return;
-        }
         this._inFlight = true;
-        let body = JSON.stringify({ query: this._buildQuery(boards) });
+
+        let afterBoards = (err) => {
+            if (err) { this._fail(err); return; }
+            let boards = this._filteredBoards();
+            if (!boards.length) { this._fail("No boards with a people column found."); return; }
+            this._fetchItems(boards, 0, [], (err2, items) => {
+                if (err2) { this._fail(err2); return; }
+                this._inFlight = false;
+                this._items = items;
+                this._lastError = null;
+                this._lastUpdated = new Date();
+                this._render();
+            });
+        };
+
+        if (this._boardsStale()) {
+            this._discoverBoards(1, [], (err, boards) => {
+                if (!err) { this._boards = boards; this._boardsFetchedAt = Date.now(); }
+                afterBoards(err);
+            });
+        } else {
+            afterBoards(null);
+        }
+    },
+
+    _fetchItems: function(boards, offset, acc, cb) {
+        if (offset >= boards.length) { cb(null, acc); return; }
+        let chunk = boards.slice(offset, offset + BOARDS_PER_REQUEST);
+        this._request(this._buildQuery(chunk), (err, data) => {
+            if (err) { cb(err); return; }
+            this._extract(data || {}).forEach(it => {
+                if (!acc.some(x => x.id === it.id)) acc.push(it);
+            });
+            this._fetchItems(boards, offset + BOARDS_PER_REQUEST, acc, cb);
+        });
+    },
+
+    _fail: function(err) {
+        this._inFlight = false;
+        this._lastError = String(err && err.message ? err.message : err);
+        this._render();
+    },
+
+    // One GraphQL request; cb(err, data).
+    _request: function(query, cb) {
+        let token = (this.apiToken || "").trim();
+        let body = JSON.stringify({ query: query });
         let msg = Soup.Message.new("POST", API_URL);
         msg.request_headers.append("Authorization", token);
         msg.request_headers.append("API-Version", API_VERSION);
 
         let done = (text, status) => {
-            this._inFlight = false;
             try {
                 if (status < 200 || status >= 300) throw new Error("HTTP " + status);
                 let json = JSON.parse(text);
                 if (json.errors && json.errors.length) throw new Error(json.errors[0].message);
                 if (json.error_message) throw new Error(json.error_message);
-                this._items = this._extract(json.data || {});
-                this._lastError = null;
-                this._lastUpdated = new Date();
+                cb(null, json.data || {});
             } catch (e) {
-                this._lastError = String(e.message || e);
+                cb(e);
             }
-            this._render();
         };
 
         if (Soup.MAJOR_VERSION === 2) {
@@ -285,7 +364,7 @@ MondayDesklet.prototype = {
         this._metaLabel = new St.Label({ text: metaText, style_class: "mw-meta" });
         top.add(this._metaLabel, { y_align: St.Align.MIDDLE });
         let btn = new St.Button({ label: "\u21BB", style_class: "mw-btn", reactive: true, track_hover: true });
-        btn.connect("clicked", () => { this._metaLabel.set_text("Loading…"); this._fetch(); });
+        btn.connect("clicked", () => { this._metaLabel.set_text("Loading…"); this._boards = null; this._fetch(); });
         top.add(btn, { y_align: St.Align.MIDDLE });
         this._root.add(top);
 

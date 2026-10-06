@@ -33,8 +33,10 @@
       "title": "monday.com",
       "keys": [
         "api_token",
-        "boards",
-        "boards_help"
+        "boards_help",
+        "workspaces",
+        "exclude_boards",
+        "board_refresh_interval"
       ]
     },
     "sec-filter": {
@@ -71,15 +73,9 @@
     "description": "API token",
     "tooltip": "monday.com \u2192 avatar \u2192 Developers \u2192 My access tokens"
   },
-  "boards": {
-    "type": "textview",
-    "default": "# one per line: boardId:peopleColumnId\n# e.g. 1234567890:person\n",
-    "description": "Boards to scan (one per line, boardId:peopleColumnId)",
-    "height": 160
-  },
   "boards_help": {
     "type": "label",
-    "description": "Board id is the number in the board URL (\u2026/boards/1234567890). Subitem boards are separate boards on monday \u2014 open a subitem and use the id from its URL. The people column id is usually 'person'."
+    "description": "Boards are discovered automatically: every active board you can see that has a people column, subitem boards included. New boards show up on the next board scan."
   },
   "show_done": {
     "type": "checkbox",
@@ -142,5 +138,26 @@
     "units": "seconds",
     "description": "Refresh interval",
     "dependency": "auto_refresh"
+  },
+  "workspaces": {
+    "type": "entry",
+    "default": "",
+    "description": "Only these workspaces (ids, comma-separated; blank = all)",
+    "tooltip": "Workspace id is in the URL: \u2026/workspaces/1234567"
+  },
+  "exclude_boards": {
+    "type": "entry",
+    "default": "",
+    "description": "Ignore these boards (ids, comma-separated)",
+    "tooltip": "Board id is in the URL: \u2026/boards/1234567890"
+  },
+  "board_refresh_interval": {
+    "type": "spinbutton",
+    "default": 15,
+    "min": 1,
+    "max": 1440,
+    "step": 1,
+    "units": "minutes",
+    "description": "Rescan for new boards every"
   }
 }
